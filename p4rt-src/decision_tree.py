@@ -10,10 +10,10 @@ BRIDGE_ID = 1
 
 # Fields expected in the rules
 MATCH_FIELDS = [
-               #"pkt_count", 
+               "pkt_count", 
                 "byte_count", 
                 "avg_pkt_size", 
-                # "duration", 
+                "duration", 
                 "avg_iat"]
 
 # Float fields that need to be scaled to int for exact match

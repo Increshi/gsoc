@@ -1,0 +1,6 @@
+sudo $(which python3) send.py --pcap pcap/flows.pcap
+python3 digest_listener.py --grpc-port 50001
+make controller name=decision-tree grpc_port=50001 topo=linear,2
+make mininet
+python3 dt_rule_gen.py
+python3 generate_pcap.py

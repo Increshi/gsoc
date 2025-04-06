@@ -5,6 +5,7 @@
 
 #define KEY_SIZE 32
 #define NUM_REGISTERS 1024
+#define CPU_PORT 255
 const bit<16> TYPE_IPV4 = 0x800;
 
 
@@ -57,12 +58,28 @@ header udp_t {
     bit<16> checksum;
 }
 
+@controller_header("packet_in")
+header packet_in_header_t {
+    bit<32> srcAddr;
+    bit<32> dstAddr;
+    bit<16> srcPort;
+    bit<16> dstPort;
+    bit<8>  protocol;
+    bit<8>  result;
+
+    
+}
+
+
+
 struct metadata {
     bit<32> pkt_count;
     bit<32> byte_count;
     bit<32> avg_pkt_size;
     bit<32> duration;
     bit<32> avg_iat;
+    bit<32> cur_iat_sum;
+    bit<32> last_timestamp;
     bit<32> src_addr;
     bit<32> dst_addr;
     bit<16> src_port;
@@ -71,12 +88,20 @@ struct metadata {
     bit<8>  result;
 }
 
+
+
+
+
+
 struct headers {
     ethernet_t   ethernet;
     ipv4_t       ipv4;
     tcp_t        tcp;
     udp_t        udp;
+    packet_in_header_t packet_in ;
 }
+
+
 
 /*************************************************************************
 *********************** P A R S E R  ***********************************
@@ -135,20 +160,48 @@ control MyIngress(inout headers hdr,
                   inout metadata meta,
                   inout standard_metadata_t standard_metadata) {
 
+    
+    
     // Sample register definition
-    register<bit<32>>(NUM_REGISTERS) pkt_count;
+    register<bit<32>>(NUM_REGISTERS) pkt_count_reg;
     // TODO: Populate the other registers here
+    register<bit<32>>(NUM_REGISTERS) byte_count_reg;
+    register<bit<32>>(NUM_REGISTERS) avg_pkt_length_reg;
+    register<bit<32>>(NUM_REGISTERS) duration_reg;
+    register<bit<32>>(NUM_REGISTERS) sum_iat_reg;
+    register<bit<32>>(NUM_REGISTERS) last_time_reg;
+    register<bit<32>>(NUM_REGISTERS) avg_iat_reg;
+    register<bit<32>>(NUM_REGISTERS) first_time_reg;
+    
+    
 
     action write_result(bit<8> result) {
         meta.result = result;
     }
+  
+         
+    action send_digest() {
+    
+        standard_metadata.egress_spec = CPU_PORT;
+        hdr.packet_in.setValid();
+        hdr.packet_in.srcAddr=hdr.ipv4.srcAddr;
+        hdr.packet_in.dstAddr=hdr.ipv4.dstAddr;
+        hdr.packet_in.srcPort=hdr.tcp.srcPort;
+        hdr.packet_in.dstPort=hdr.tcp.dstPort;
+        hdr.packet_in.protocol=hdr.ipv4.protocol;
+        hdr.packet_in.result=meta.result;
+        
+       
+    } 
+    
+    
 
     table classifier {
         key = {
-            // meta.pkt_count: exact;
+            meta.pkt_count: exact;
             meta.byte_count: exact;
             meta.avg_pkt_size: exact;
-            // meta.duration: exact;
+            meta.duration: exact;
             meta.avg_iat: exact;
             hdr.tcp.flags: exact;
         }
@@ -159,28 +212,106 @@ control MyIngress(inout headers hdr,
         size = 1024;
         default_action = NoAction();
     }
+    
+    
 
     apply {
-        // Extract the pkt index
-        meta.pkt_index = (bit<32>)standard_metadata.ingress_port;
-
-        // Read current value into meta.pkt_val
-        pkt_count.read(meta.pkt_count, meta.pkt_index);
-
-        // Increment in-place
-        meta.pkt_count = meta.pkt_count + 1;
-
-        // Write back
-        pkt_count.write(meta.pkt_index, meta.pkt_count);
+        
 
         // TODO: Implement the rest of the register operations here
+        hash(meta.pkt_index, HashAlgorithm.crc16, (bit<16>)0, {hdr.ipv4.srcAddr,
+                                                          hdr.ipv4.dstAddr,
+                                                          hdr.tcp.srcPort,
+                                                          hdr.tcp.dstPort,
+                                                          hdr.ipv4.protocol},
+                                                          (bit<32>)NUM_REGISTERS);
+                                                        
+        bit<32> cur_pkt_count;
+        bit<32> cur_byte_count;
+        bit<32> last_time;
+        bit<32> cur_iat_sum;
+        bit<32> first_time;
+        bit<8> shift_amount = 0;
+        
+                                                          
+                                                  
+        // Read values from all registers
+        pkt_count_reg.read(cur_pkt_count, meta.pkt_index);
+        byte_count_reg.read(cur_byte_count,meta.pkt_index);
+        last_time_reg.read(last_time,meta.pkt_index);
+        sum_iat_reg.read(cur_iat_sum,meta.pkt_index);
+        first_time_reg.read(first_time, meta.pkt_index);
+        
+        //Updating register values of specific flow packet belongs
+        cur_pkt_count=cur_pkt_count+1;
+        meta.pkt_count=cur_pkt_count;
+        meta.byte_count=cur_byte_count+(bit<32>)standard_metadata.packet_length;
+        if (meta.pkt_count >= 16) {
+           shift_amount = 4;  
+        } else if (meta.pkt_count >= 8) {
+           shift_amount = 3;  
+        } else if (meta.pkt_count >= 4) {
+           shift_amount = 2;  
+        } else if (meta.pkt_count >= 2) {
+           shift_amount = 1;  
+        }
+  
+        
+        if (meta.pkt_count != 0) {
+           meta.avg_pkt_size = (shift_amount > 0) ?(meta.byte_count >> shift_amount) : meta.byte_count;
+           
+        } else {
+           meta.avg_pkt_size= 0;
+        }
+        
 
+       
+        if (meta.pkt_count <= 1) {
+            first_time_reg.write(meta.pkt_index, (bit<32>)standard_metadata.ingress_global_timestamp);
+            meta.duration = 0;
+            meta.cur_iat_sum=0;
+            meta.avg_iat=0;
+        } else {
+            meta.duration = (bit<32>) standard_metadata.ingress_global_timestamp - first_time;
+            bit<32> current_time = (bit<32>)standard_metadata.ingress_global_timestamp;
+            bit<32> iat = current_time - last_time;
+            cur_iat_sum = cur_iat_sum + iat;
+            meta.cur_iat_sum = cur_iat_sum; 
+            //meta.avg_iat= meta.cur_iat_sum* (bit<32>)(1/(cur_pkt_count-1));
+            meta.avg_iat= (shift_amount > 0) ?(meta.cur_iat_sum >> shift_amount) : meta.cur_iat_sum ;
+        }
+        
+    
+         // Write back
+        duration_reg.write(meta.pkt_index, meta.duration);
+        sum_iat_reg.write(meta.pkt_index, meta.cur_iat_sum);
+        avg_iat_reg.write(meta.pkt_index,meta.avg_iat);
+        pkt_count_reg.write(meta.pkt_index, meta.pkt_count);
+        byte_count_reg.write(meta.pkt_index, meta.byte_count);
+        avg_pkt_length_reg.write(meta.pkt_index,meta.avg_pkt_size);
+        
+        // Update last timestamp
+        last_time_reg.write(meta.pkt_index, (bit<32>)standard_metadata.ingress_global_timestamp);
+        meta.last_timestamp = (bit<32>)standard_metadata.ingress_global_timestamp;
+        
         // Apply the classifier
         classifier.apply();
+        
+        
+        //Apply Digest Trigger
+        if(hdr.tcp.isValid()){
+          if((hdr.tcp.flags & 0x01) != 0){
+             send_digest();
+          }
+        }
+          
+      
+        
     }
 }
 
-/*************************************************************************
+/********************************
+*****************************************
 ****************  E G R E S S   P R O C E S S I N G   *******************
 *************************************************************************/
 
@@ -237,3 +368,4 @@ MyEgress(),
 MyComputeChecksum(),
 MyDeparser()
 ) main;
+

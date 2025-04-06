@@ -1,0 +1,239 @@
+pkg_info {
+  arch: "v1model"
+}
+tables {
+  preamble {
+    id: 33579153
+    name: "MyIngress.classifier"
+    alias: "classifier"
+  }
+  match_fields {
+    id: 1
+    name: "meta.pkt_count"
+    bitwidth: 32
+    match_type: EXACT
+  }
+  match_fields {
+    id: 2
+    name: "meta.byte_count"
+    bitwidth: 32
+    match_type: EXACT
+  }
+  match_fields {
+    id: 3
+    name: "meta.avg_pkt_size"
+    bitwidth: 32
+    match_type: EXACT
+  }
+  match_fields {
+    id: 4
+    name: "meta.duration"
+    bitwidth: 32
+    match_type: EXACT
+  }
+  match_fields {
+    id: 5
+    name: "meta.avg_iat"
+    bitwidth: 32
+    match_type: EXACT
+  }
+  match_fields {
+    id: 6
+    name: "hdr.tcp.flags"
+    bitwidth: 8
+    match_type: EXACT
+  }
+  action_refs {
+    id: 16783595
+  }
+  action_refs {
+    id: 16800567
+  }
+  size: 1024
+}
+actions {
+  preamble {
+    id: 16800567
+    name: "NoAction"
+    alias: "NoAction"
+  }
+}
+actions {
+  preamble {
+    id: 16783595
+    name: "MyIngress.write_result"
+    alias: "write_result"
+  }
+  params {
+    id: 1
+    name: "result"
+    bitwidth: 8
+  }
+}
+actions {
+  preamble {
+    id: 16842278
+    name: "MyIngress.send_digest"
+    alias: "send_digest"
+  }
+}
+controller_packet_metadata {
+  preamble {
+    id: 67146229
+    name: "packet_in"
+    alias: "packet_in"
+    annotations: "@controller_header(\"packet_in\")"
+  }
+  metadata {
+    id: 1
+    name: "srcAddr"
+    bitwidth: 32
+  }
+  metadata {
+    id: 2
+    name: "dstAddr"
+    bitwidth: 32
+  }
+  metadata {
+    id: 3
+    name: "srcPort"
+    bitwidth: 16
+  }
+  metadata {
+    id: 4
+    name: "dstPort"
+    bitwidth: 16
+  }
+  metadata {
+    id: 5
+    name: "protocol"
+    bitwidth: 8
+  }
+  metadata {
+    id: 6
+    name: "result"
+    bitwidth: 8
+  }
+}
+registers {
+  preamble {
+    id: 369124548
+    name: "MyIngress.pkt_count_reg"
+    alias: "pkt_count_reg"
+  }
+  type_spec {
+    bitstring {
+      bit {
+        bitwidth: 32
+      }
+    }
+  }
+  size: 1024
+}
+registers {
+  preamble {
+    id: 369158756
+    name: "MyIngress.byte_count_reg"
+    alias: "byte_count_reg"
+  }
+  type_spec {
+    bitstring {
+      bit {
+        bitwidth: 32
+      }
+    }
+  }
+  size: 1024
+}
+registers {
+  preamble {
+    id: 369152972
+    name: "MyIngress.avg_pkt_length_reg"
+    alias: "avg_pkt_length_reg"
+  }
+  type_spec {
+    bitstring {
+      bit {
+        bitwidth: 32
+      }
+    }
+  }
+  size: 1024
+}
+registers {
+  preamble {
+    id: 369164147
+    name: "MyIngress.duration_reg"
+    alias: "duration_reg"
+  }
+  type_spec {
+    bitstring {
+      bit {
+        bitwidth: 32
+      }
+    }
+  }
+  size: 1024
+}
+registers {
+  preamble {
+    id: 369132070
+    name: "MyIngress.sum_iat_reg"
+    alias: "sum_iat_reg"
+  }
+  type_spec {
+    bitstring {
+      bit {
+        bitwidth: 32
+      }
+    }
+  }
+  size: 1024
+}
+registers {
+  preamble {
+    id: 369121007
+    name: "MyIngress.last_time_reg"
+    alias: "last_time_reg"
+  }
+  type_spec {
+    bitstring {
+      bit {
+        bitwidth: 32
+      }
+    }
+  }
+  size: 1024
+}
+registers {
+  preamble {
+    id: 369100307
+    name: "MyIngress.avg_iat_reg"
+    alias: "avg_iat_reg"
+  }
+  type_spec {
+    bitstring {
+      bit {
+        bitwidth: 32
+      }
+    }
+  }
+  size: 1024
+}
+registers {
+  preamble {
+    id: 369135149
+    name: "MyIngress.first_time_reg"
+    alias: "first_time_reg"
+  }
+  type_spec {
+    bitstring {
+      bit {
+        bitwidth: 32
+      }
+    }
+  }
+  size: 1024
+}
+type_info {
+}
