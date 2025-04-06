@@ -95,7 +95,7 @@ $ python3 digest_listener.py --grpc-port 50001
 This will start listener script which receives messages from Switch
 
 ## Step 7: Run the Send Python script
-In another shell, run the followin command:
+In another shell, run the following command:
 ```bash
 $ sudo $(which python3) send.py --pcap pcap/flows.pcap
 ```
