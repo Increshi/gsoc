@@ -87,6 +87,21 @@ This will:
 
 - Insert table entries into MyIngress.classifier for flows that match the decision tree logic
 
+## Step 6: Run the Receiver code
+Open another shell and run the following command:
+```bash
+$ python3 digest_listener.py --grpc-port 50001
+```
+This will start listener script which receives messages from Switch
+
+## Step 7: Run the Send Python script
+In another shell, run the followin command:
+```bash
+$ sudo $(which python3) send.py --pcap pcap/flows.pcap
+```
+- This will create packets based on provided pcap file using scapy library
+- The packets are sent by h1 from h1-eth0 interface to s1-eth1 interface of switch s1
+
 ## Your task: Flow Classification and Digest Reporting in P4
 
 1. **Modify the P4 Program**
